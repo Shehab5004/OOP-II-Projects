@@ -1,7 +1,6 @@
 #!/usr/bin/python
 import numpy as np  # Importing numpy for calculations
 
-
 # Class to represent a user
 class User:
     def __init__(self, username, pin, balance):
@@ -16,11 +15,13 @@ class User:
         self.pin = new_pin
         print("NEW PIN SAVED.")
 
-
 # Class for transaction validation logic
 class Transaction:
     MIN_AMOUNT = 500  # Minimum transaction amount
     RECEIPT_FEE = 3   # Fee for printing a receipt
+    
+    # Lambda function to calculate fees dynamically
+    calculate_fee = lambda amount, rate: amount * rate / 100
 
     @staticmethod
     def validate_amount(amount):
@@ -31,7 +32,6 @@ class Transaction:
             print("AMOUNT MUST BE A MULTIPLE OF 500 TAKA.")
             return False
         return True
-
 
 # Class to handle user balance-related operations
 class BalanceManager:
@@ -51,7 +51,6 @@ class BalanceManager:
     def add(self, amount):
         self.user.balance += amount
 
-
 # Class to handle withdrawals
 class Withdrawal:
     def __init__(self, balance_manager):
@@ -60,8 +59,12 @@ class Withdrawal:
     def withdraw(self, amount):
         if not Transaction.validate_amount(amount):
             return
-        if self.balance_manager.deduct(amount):
-            print(f"WITHDRAWAL OF {amount} TAKA SUCCESSFUL.")
+        # Calculate withdrawal fee (e.g., 2% of the amount)
+        fee = Transaction.calculate_fee(amount, 2)
+        total_deduction = amount + fee
+        
+        if self.balance_manager.deduct(total_deduction):
+            print(f"WITHDRAWAL OF {amount} TAKA SUCCESSFUL. A FEE OF {fee:.2f} TAKA WAS DEDUCTED.")
             try:
                 # Ask if the user wants a receipt
                 receipt = input("WOULD YOU LIKE A RECEIPT FOR AN EXTRA 3 TAKA? (Y/N): ").strip().lower()
@@ -71,7 +74,6 @@ class Withdrawal:
                 print(f"NEW BALANCE: {self.balance_manager.user.balance} TAKA.")
             except Exception as e:
                 print("AN ERROR OCCURRED WHILE PROCESSING YOUR RECEIPT REQUEST.", e)
-
 
 # Class for all account-related operations
 class Account:
@@ -95,10 +97,14 @@ class Account:
 
     def fund_transfer(self, recipient_user, amount):
         if Transaction.validate_amount(amount):
-            if self.balance_manager.deduct(amount):
+            # Calculate transfer fee (e.g., 1.5% of the amount)
+            fee = Transaction.calculate_fee(amount, 1.5)
+            total_deduction = amount + fee
+            
+            if self.balance_manager.deduct(total_deduction):
                 recipient_user.balance += amount
-                print(f"FUND TRANSFER OF {amount} TAKA TO {recipient_user.username} SUCCESSFUL. NEW BALANCE: {self.user.balance} TAKA.")
-
+                print(f"FUND TRANSFER OF {amount} TAKA TO {recipient_user.username} SUCCESSFUL.")
+                print(f"A FEE OF {fee:.2f} TAKA WAS DEDUCTED. NEW BALANCE: {self.user.balance} TAKA.")
 
 # Class to manage the ATM system and user interactions
 class ATM:
@@ -237,7 +243,7 @@ class ATM:
         except ValueError:
             print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
         except Exception as e:
-            print("AN ERROR OCCURRED WHILE PROCESSING TOP-UP.", e)
+            print("AN ERROR OCCURRED WHILE PROCESSING MOBILE TOP-UP.", e)
 
     def handle_fund_transfer(self):
         try:
@@ -255,16 +261,12 @@ class ATM:
 
     def show_total_balances(self):
         try:
-            balances = [user.balance for user in self.users.values()]
-            total_balance = np.sum(balances)
-            print(f"TOTAL BALANCE OF ALL USERS: {total_balance} TAKA.")
+            total_balance = sum(user.balance for user in self.users.values())
+            print(f"TOTAL BALANCES ACROSS ALL USERS: {total_balance} TAKA.")
         except Exception as e:
-            print("AN ERROR OCCURRED WHILE CALCULATING TOTAL BALANCE.", e)
+            print("AN ERROR OCCURRED WHILE FETCHING TOTAL BALANCES.", e)
 
-
-# Instantiate and start the ATM
-try:
+# Start the ATM system
+if __name__ == "__main__":
     atm = ATM()
     atm.start()
-except Exception as e:
-    print("AN UNEXPECTED ERROR OCCURRED. PLEASE TRY AGAIN LATER.", e)
