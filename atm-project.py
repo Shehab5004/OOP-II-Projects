@@ -1,8 +1,7 @@
 #!/usr/bin/python
-import numpy as np 
+import numpy as np
 
-
-# represent a user
+# Represent a user
 class User:
     def __init__(self, username, pin, balance):
         self.username = username  # Public attribute
@@ -32,7 +31,7 @@ class User:
         self.transaction_history.append(transaction)
 
 
-# transaction logic
+# Transaction logic
 class Transaction:
     MIN_AMOUNT = 500  # Minimum amount
     RECEIPT_FEE = 3  # Fee for printing a receipt
@@ -49,7 +48,52 @@ class Transaction:
         return True
 
 
-#  balance-related operations
+# Subclasses for specific transactions
+class Withdrawal(Transaction):
+    def __init__(self, balance_manager):
+        self.balance_manager = balance_manager
+
+    def execute(self, amount):
+        """Perform a withdrawal after validating the amount."""
+        if not self.validate_amount(amount):
+            return
+
+        if self.balance_manager.deduct(amount, "Withdrawal"):
+            print(f"WITHDRAWAL OF {amount} TAKA SUCCESSFUL.")
+            try:
+                receipt = input("WOULD YOU LIKE A RECEIPT FOR AN EXTRA 3 TAKA? (Y/N): ").strip().lower()
+                if receipt == 'y':
+                    if self.balance_manager.deduct(Transaction.RECEIPT_FEE, "Receipt Fee"):
+                        print("RECEIPT PRINTED. EXTRA 3 TAKA DEDUCTED.")
+                print(f"NEW BALANCE: {self.balance_manager.user.get_balance()} TAKA.")
+            except Exception as e:
+                print("AN ERROR OCCURRED WHILE PROCESSING YOUR RECEIPT REQUEST.", e)
+
+
+class Deposit(Transaction):
+    def __init__(self, balance_manager):
+        self.balance_manager = balance_manager
+
+    def execute(self, amount):
+        """Handle deposits by validating the amount and adding it to the balance."""
+        if self.validate_amount(amount):
+            self.balance_manager.add(amount, "Deposit")
+            print(f"DEPOSIT SUCCESSFUL. NEW BALANCE: {self.balance_manager.user.get_balance()} TAKA.")
+
+
+class TopUp(Transaction):
+    def __init__(self, balance_manager):
+        self.balance_manager = balance_manager
+
+    def execute(self, phone_number, amount):
+        """Perform a mobile top-up after validating the amount and deducting it."""
+        if self.validate_amount(amount) and self.balance_manager.deduct(amount, f"Mobile Top-up ({phone_number})"):
+            print(f"MOBILE TOP-UP OF {amount} TAKA TO {phone_number} SUCCESSFUL. NEW BALANCE: {self.balance_manager.user.get_balance()} TAKA.")
+
+
+
+
+# Balance-related operations
 class BalanceManager:
     def __init__(self, user):
         self.user = user
@@ -72,30 +116,41 @@ class BalanceManager:
         self.user.set_balance(self.user.get_balance() + amount)
         self.user.add_transaction(f"+{amount} TAKA: {description}")
 
+# Customer Support Class
+class CustomerSupport:
+    def __init__(self):
+        self.support_tickets = []  # List to store support tickets
 
-# handle withdrawals
-class Withdrawal:
-    def __init__(self, balance_manager):
-        self.balance_manager = balance_manager
+    def log_issue(self, username, issue):
+        """Log a customer issue."""
+        ticket_id = len(self.support_tickets) + 1
+        self.support_tickets.append({"ticket_id": ticket_id, "username": username, "issue": issue, "status": "Open"})
+        print(f"ISSUE LOGGED SUCCESSFULLY. YOUR TICKET ID IS {ticket_id}. OUR TEAM WILL REACH OUT SOON.")
 
-    def withdraw(self, amount):
-        """Perform a withdrawal after validating the amount."""
-        if not Transaction.validate_amount(amount):
-            return
+    def view_tickets(self, username):
+        """View all tickets for a specific user."""
+        print(f"\nTICKETS FOR USER: {username}")
+        user_tickets = [ticket for ticket in self.support_tickets if ticket["username"] == username]
+        if user_tickets:
+            for ticket in user_tickets:
+                print(f"Ticket ID: {ticket['ticket_id']}, Issue: {ticket['issue']}, Status: {ticket['status']}")
+        else:
+            print("NO TICKETS FOUND.")
 
-        if self.balance_manager.deduct(amount, "Withdrawal"):
-            print(f"WITHDRAWAL OF {amount} TAKA SUCCESSFUL.")
-            try:
-                receipt = input("WOULD YOU LIKE A RECEIPT FOR AN EXTRA 3 TAKA? (Y/N): ").strip().lower()
-                if receipt == 'y':
-                    if self.balance_manager.deduct(Transaction.RECEIPT_FEE, "Receipt Fee"):
-                        print("RECEIPT PRINTED. EXTRA 3 TAKA DEDUCTED.")
-                print(f"NEW BALANCE: {self.balance_manager.user.get_balance()} TAKA.")
-            except Exception as e:
-                print("AN ERROR OCCURRED WHILE PROCESSING YOUR RECEIPT REQUEST.", e)
+    def resolve_ticket(self, ticket_id):
+        """Mark a ticket as resolved."""
+        for ticket in self.support_tickets:
+            if ticket["ticket_id"] == ticket_id:
+                ticket["status"] = "Resolved"
+                print(f"TICKET {ticket_id} MARKED AS RESOLVED.")
+                return
+        print("TICKET NOT FOUND.")
 
 
-# all account-related operations
+
+
+
+# All account-related operations
 class Account:
     def __init__(self, user):
         self.user = user
@@ -137,7 +192,7 @@ class Account:
             print("NO TRANSACTIONS AVAILABLE.")
 
 
-# manage the ATM system and user interactions
+# Manage the ATM system and user interactions
 class ATM:
     def __init__(self):
         self.users = {
@@ -147,6 +202,7 @@ class ATM:
         }
         self.current_user = None
         self.account = None
+        self.customer_support = CustomerSupport()  # Add customer support instance
 
     def start(self):
         self.show_title()
@@ -191,7 +247,7 @@ class ATM:
     def main_menu(self):
         """Display the main menu and handle user options."""
         while True:
-            print("\nSELECT OPTION: \nBalance Inquiry (B) \nMini Statement (M) \nWithdraw (W) \nDeposit (D) \nChange PIN (P) \nBill Pay (L) \nTop-up (T) \nFund Transfer (F) \nQuit (Q) \n")
+            print("\nSELECT OPTION: \nBalance Inquiry (B) \nMini Statement (M) \nWithdraw (W) \nDeposit (D) \nChange PIN (P) \nBill Pay (L) \nTop-up (T) \nFund Transfer (F) \nCustomer Support (C) \nQuit (Q)\n")
             choice = input("SELECT AN OPTION: ").strip().lower()
 
             if choice == 'b':
@@ -204,41 +260,34 @@ class ATM:
                 self.handle_deposit()
             elif choice == 'l':
                 self.handle_bill_payment()
-            elif choice == 'p':
-                self.handle_change_pin()
             elif choice == 't':
-                self.handle_topup()
+                self.handle_top_up()
             elif choice == 'f':
                 self.handle_fund_transfer()
+            elif choice == 'c':
+                self.handle_customer_support()
+            elif choice == 'p':
+                self.handle_pin_change()
             elif choice == 'q':
-                print("THANK YOU FOR USING SRS ATM. GOODBYE!")
-                exit()
+                print("THANK YOU FOR USING SRS ATM. HAVE A GREAT DAY!")
+                break
             else:
                 print("INVALID OPTION. PLEASE TRY AGAIN.")
 
     def handle_withdraw(self):
-        """Handle withdrawal process."""
         try:
-            amount = int(input("ENTER AMOUNT TO WITHDRAW: "))
-            self.account.withdrawal.withdraw(amount)
+            amount = int(input("ENTER WITHDRAWAL AMOUNT: "))
+            self.account.withdrawal.execute(amount)  # Correct method name
         except ValueError:
-            print("INVALID AMOUNT ENTERED.")
+            print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
+
 
     def handle_deposit(self):
-        """Handle deposit process."""
         try:
-            amount = int(input("ENTER AMOUNT TO DEPOSIT: "))
+            amount = int(input("ENTER DEPOSIT AMOUNT: "))
             self.account.deposit(amount)
         except ValueError:
-            print("INVALID AMOUNT ENTERED.")
-
-    def handle_change_pin(self):
-        """Allow the user to change their PIN."""
-        try:
-            new_pin = input("ENTER NEW PIN: ").strip()
-            self.current_user.change_pin(new_pin)
-        except Exception as e:
-            print("AN ERROR OCCURRED WHILE CHANGING THE PIN.", e)
+            print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
 
     def handle_bill_payment(self):
         """Handle bill payment options."""
@@ -271,30 +320,92 @@ class ATM:
         except ValueError:
             print("INVALID INPUT. PLEASE ENTER A VALID NUMBER.")
 
-    def handle_topup(self):
-        """Handle mobile top-up process."""
+    def handle_top_up(self):
         try:
-            phone_number = input("ENTER PHONE NUMBER: ").strip()
-            amount = int(input("ENTER AMOUNT TO TOP-UP: "))
+            phone_number = input("ENTER PHONE NUMBER: ")
+            amount = int(input(f"ENTER TOP-UP AMOUNT FOR {phone_number}: "))
             self.account.mobile_topup(phone_number, amount)
         except ValueError:
-            print("INVALID AMOUNT ENTERED.")
+            print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
 
     def handle_fund_transfer(self):
-        """Handle fund transfer process."""
-        try:
-            recipient_username = input("ENTER RECIPIENT USERNAME: ").lower()
-            if recipient_username in self.users and recipient_username != self.current_user.username:
+        recipient_username = input("ENTER RECIPIENT'S USERNAME: ").strip().lower()
+        if recipient_username in self.users and recipient_username != self.current_user.username:
+            try:
+                amount = int(input(f"ENTER AMOUNT TO TRANSFER TO {recipient_username}: "))
                 recipient_user = self.users[recipient_username]
-                amount = int(input(f"ENTER AMOUNT TO TRANSFER TO {recipient_username.capitalize()}: "))
                 self.account.fund_transfer(recipient_user, amount)
+            except ValueError:
+                print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
+        else:
+            print("INVALID RECIPIENT USERNAME.")
+
+    def handle_pin_change(self):
+        new_pin = input("ENTER YOUR NEW PIN: ").strip()
+        self.current_user.change_pin(new_pin)
+
+    def handle_customer_support(self):
+        """Handle customer support options."""
+        print("\nCUSTOMER SUPPORT OPTIONS:")
+        print("1. Log a General Issue")
+        print("2. Card Lock")
+        print("3. Withdraw Problem")
+        print("4. Deposit Problem")
+        print("5. Change PIN Issue")
+        print("6. Bill Payment Issue")
+        print("7. Top-up Issue")
+        print("8. Fund Transfer Issue")
+        print("9. Mini Statement Issue")
+        print("10. View My Tickets")
+        print("11. Resolve a Ticket")
+        print("12. Back to Main Menu\n")
+
+        try:
+            choice = int(input("SELECT AN OPTION: "))
+            if choice == 1:
+                issue = input("DESCRIBE YOUR ISSUE: ")
+                self.customer_support.log_issue(self.current_user.username, issue)
+            elif choice == 2:
+                self.customer_support.log_issue(self.current_user.username, "Card Lock Issue")
+                print("CARD LOCK ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 3:
+                self.customer_support.log_issue(self.current_user.username, "Withdrawal Problem")
+                print("WITHDRAWAL PROBLEM LOGGED SUCCESSFULLY.")
+            elif choice == 4:
+                self.customer_support.log_issue(self.current_user.username, "Deposit Problem")
+                print("DEPOSIT PROBLEM LOGGED SUCCESSFULLY.")
+            elif choice == 5:
+                self.customer_support.log_issue(self.current_user.username, "Change PIN Issue")
+                print("CHANGE PIN ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 6:
+                self.customer_support.log_issue(self.current_user.username, "Bill Payment Issue")
+                print("BILL PAYMENT ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 7:
+                self.customer_support.log_issue(self.current_user.username, "Top-up Issue")
+                print("TOP-UP ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 8:
+                self.customer_support.log_issue(self.current_user.username, "Fund Transfer Issue")
+                print("FUND TRANSFER ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 9:
+                self.customer_support.log_issue(self.current_user.username, "Mini Statement Issue")
+                print("MINI STATEMENT ISSUE LOGGED SUCCESSFULLY.")
+            elif choice == 10:
+                self.customer_support.view_tickets(self.current_user.username)
+            elif choice == 11:
+                try:
+                    ticket_id = int(input("ENTER TICKET ID TO RESOLVE: "))
+                    self.customer_support.resolve_ticket(ticket_id)
+                except ValueError:
+                    print("INVALID TICKET ID. PLEASE TRY AGAIN.")
+            elif choice == 12:
+                return
             else:
-                print("INVALID RECIPIENT.")
+                print("INVALID OPTION. PLEASE TRY AGAIN.")
         except ValueError:
-            print("INVALID AMOUNT ENTERED.")
+            print("INVALID INPUT. PLEASE TRY AGAIN.")
 
 
-# Main program execution
+# Main execution
 if __name__ == "__main__":
     atm = ATM()
     atm.start()
