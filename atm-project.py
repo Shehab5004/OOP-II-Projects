@@ -28,7 +28,7 @@ class User:
 
     def add_transaction(self, transaction):
         """Add a transaction to the user's history."""
-        self.transaction_history.append(transaction)
+        self.transaction_history = np.append(self.transaction_history, transaction)
 
 
 # Transaction logic
@@ -148,8 +148,6 @@ class CustomerSupport:
 
 
 
-
-
 # All account-related operations
 class Account:
     def __init__(self, user):
@@ -190,6 +188,59 @@ class Account:
                 print(transaction)
         else:
             print("NO TRANSACTIONS AVAILABLE.")
+
+
+class Security:
+    MAX_ATTEMPTS = 3  # Maximum allowed PIN attempts
+
+    def __init__(self):
+        self.locked = False  # Flag to indicate if the account is locked
+        self.attempts = 0  # Track failed attempts
+
+    def validate_pin(self, input_pin, actual_pin):
+        """Validate PIN and lock the account after too many failed attempts."""
+        if self.locked:
+            print("ACCOUNT IS LOCKED. PLEASE CONTACT CUSTOMER SUPPORT.")
+            return False
+
+        if input_pin == actual_pin:
+            self.attempts = 0  # Reset attempts on success
+            return True
+        else:
+            self.attempts += 1
+            if self.attempts >= self.MAX_ATTEMPTS:
+                self.locked = True
+                print("TOO MANY FAILED ATTEMPTS. ACCOUNT LOCKED.")
+            else:
+                print(f"INVALID PIN. {self.MAX_ATTEMPTS - self.attempts} ATTEMPTS REMAINING.")
+            return False
+
+
+# Subclass for changing PIN
+class ChangePin(Account, Security):
+    def __init__(self, user):
+        Account.__init__(self, user)  # Initialize the parent Account class
+        Security.__init__(self)  # Initialize the parent Security class
+
+    def execute(self):
+        """Handle the process of securely changing the PIN."""
+        print("\nCHANGE PIN PROCESS")
+        for _ in range(3):  # Allow up to 3 attempts for PIN validation
+            input_pin = input("PLEASE ENTER YOUR CURRENT PIN: ")
+            if self.user.authenticate(input_pin):
+                new_pin = input("ENTER YOUR NEW PIN: ").strip()
+                confirm_pin = input("CONFIRM YOUR NEW PIN: ").strip()
+
+                if new_pin == confirm_pin:
+                    self.user.change_pin(new_pin)
+                    print("PIN CHANGED SUCCESSFULLY.")
+                    break
+                else:
+                    print("NEW PIN AND CONFIRMATION PIN DO NOT MATCH. TRY AGAIN.")
+            else:
+                print("INVALID CURRENT PIN.")
+        else:
+            print("TOO MANY FAILED ATTEMPTS. EXITING PIN CHANGE PROCESS.")
 
 
 # Manage the ATM system and user interactions
@@ -341,8 +392,9 @@ class ATM:
             print("INVALID RECIPIENT USERNAME.")
 
     def handle_pin_change(self):
-        new_pin = input("ENTER YOUR NEW PIN: ").strip()
-        self.current_user.change_pin(new_pin)
+        change_pin = ChangePin(self.current_user)  # Pass the current user to ChangePin
+        change_pin.execute()
+
 
     def handle_customer_support(self):
         """Handle customer support options."""
