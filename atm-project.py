@@ -7,7 +7,7 @@ class User:
         self.username = username  # Public attribute
         self.__pin = pin  # Private attribute
         self.__balance = balance  # Private attribute
-        self.transaction_history = []  # Store transaction history
+        self.transaction_history = []
 
     def authenticate(self, input_pin):
         """Check if the entered PIN matches the user's PIN."""
@@ -50,16 +50,32 @@ class Transaction:
 
 # Subclasses for specific transactions
 class Withdrawal(Transaction):
+    MAX_WITHDRAWAL_PER_TRANSACTION = 20000 
+    MAX_WITHDRAWAL_PER_DAY = 80000  
+
     def __init__(self, balance_manager):
         self.balance_manager = balance_manager
+        self.daily_withdrawal_total = 0  
 
     def execute(self, amount):
         """Perform a withdrawal after validating the amount."""
+        # Check maximum withdrawal per transaction
+        if amount > Withdrawal.MAX_WITHDRAWAL_PER_TRANSACTION:
+            print(f"YOU CAN ONLY WITHDRAW A MAXIMUM OF {Withdrawal.MAX_WITHDRAWAL_PER_TRANSACTION} TAKA PER TRANSACTION.")
+            return
+
+        # Check daily withdrawal limit
+        if self.daily_withdrawal_total + amount > Withdrawal.MAX_WITHDRAWAL_PER_DAY:
+            print(f"DAILY LIMIT REACHED. YOU CAN ONLY WITHDRAW UP TO {Withdrawal.MAX_WITHDRAWAL_PER_DAY} TAKA IN A DAY.")
+            return
+
         if not self.validate_amount(amount):
             return
 
         if self.balance_manager.deduct(amount, "Withdrawal"):
+            self.daily_withdrawal_total += amount
             print(f"WITHDRAWAL OF {amount} TAKA SUCCESSFUL.")
+
             try:
                 receipt = input("WOULD YOU LIKE A RECEIPT FOR AN EXTRA 3 TAKA? (Y/N): ").strip().lower()
                 if receipt == 'y':
@@ -68,6 +84,7 @@ class Withdrawal(Transaction):
                 print(f"NEW BALANCE: {self.balance_manager.user.get_balance()} TAKA.")
             except Exception as e:
                 print("AN ERROR OCCURRED WHILE PROCESSING YOUR RECEIPT REQUEST.", e)
+
 
 
 class Deposit(Transaction):
@@ -147,7 +164,6 @@ class CustomerSupport:
         print("TICKET NOT FOUND.")
 
 
-
 # All account-related operations
 class Account:
     def __init__(self, user):
@@ -219,8 +235,8 @@ class Security:
 # Subclass for changing PIN
 class ChangePin(Account, Security):
     def __init__(self, user):
-        Account.__init__(self, user)  # Initialize the parent Account class
-        Security.__init__(self)  # Initialize the parent Security class
+        Account.__init__(self, user)
+        Security.__init__(self)
 
     def execute(self):
         """Handle the process of securely changing the PIN."""
@@ -328,7 +344,7 @@ class ATM:
     def handle_withdraw(self):
         try:
             amount = int(input("ENTER WITHDRAWAL AMOUNT: "))
-            self.account.withdrawal.execute(amount)  # Correct method name
+            self.account.withdrawal.execute(amount)  
         except ValueError:
             print("INVALID AMOUNT. PLEASE ENTER A NUMBER.")
 
@@ -392,7 +408,7 @@ class ATM:
             print("INVALID RECIPIENT USERNAME.")
 
     def handle_pin_change(self):
-        change_pin = ChangePin(self.current_user)  # Pass the current user to ChangePin
+        change_pin = ChangePin(self.current_user) 
         change_pin.execute()
 
 
