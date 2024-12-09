@@ -197,13 +197,25 @@ class Account:
                 print(f"NEW BALANCE: {self.user.get_balance()} TAKA.")
 
     def show_mini_statement(self):
-        """Display the user's transaction history."""
-        print("\nMINI STATEMENT:")
-        if self.user.transaction_history:
-            for transaction in self.user.transaction_history:
-                print(transaction)
+        """
+        Display all transaction history for the user in the form of a mini-statement.
+        """
+        print("\n===== Mini Statement =====")
+        
+        # Explicitly handle transaction history
+        transaction_history = list(self.user.transaction_history)  
+
+        if transaction_history:  
+            print("\nRecent Transactions:")
+
+            # Display each transaction
+            for index, transaction in enumerate(transaction_history, start=1):
+                print(f"{index}. {transaction}")
+            
+            print("\n===========================")
         else:
-            print("NO TRANSACTIONS AVAILABLE.")
+            print("No transactions available.")
+            print("\n===========================")
 
 
 class Security:
